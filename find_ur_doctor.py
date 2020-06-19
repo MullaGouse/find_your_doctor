@@ -1,4 +1,4 @@
-import flask
+from flask import Flask, request
 import numpy as np # linear algebra
 import pandas as pd # data processing, CSV file I/O (e.g. pd.read_csv)
 import os
@@ -8,12 +8,15 @@ from sklearn.metrics import silhouette_score
 import seaborn as sns
 import warnings
 import json
+from flask_cors import CORS, cross_origin
+
 warnings.filterwarnings('ignore')
-app = flask.Flask(__name__)
+app = Flask(__name__)
 app.config["DEBUG"] = True
+CORS(app)
 
 
-@app.route('/', methods=['GET'])
+@app.route('/', methods=['POST'])
 def home():
     dataset = pd.read_csv('clustering_data.csv')
     dataset.isnull().sum()
@@ -52,9 +55,12 @@ def home():
     # plt.scatter(kmeans.cluster_centers_[:, 0], kmeans.cluster_centers_[:, 0], s=300, c=['YELLOW', 'BLUE', 'GREEN'])
     # plt.show()
     dataset['cluster'] = pred_y
-    front_root_disease_val = "cardio"
-    front_age_val = 30
+    front_root_disease_val = request.form.get('name')
+    print("front_root_disease_val" , front_root_disease_val)
+    front_age_val = int(request.form.get('age'))
+    print("front_age_val" , front_age_val)
     upper_range = front_age_val + 10
+    print("upper_range" , upper_range)
     dict1 = {}
     rt_ls = dataset['ROOT_DIEASE']
     rt_ls = list(dataset['ROOT_DIEASE'])
@@ -69,19 +75,26 @@ def home():
     RD_ID_VAL = dict1[front_root_disease_val]
     print("rd_id_val",RD_ID_VAL)
     rslt_df = dataset[(dataset['ROOT_DISEASE_CD'] == RD_ID_VAL) & (dataset['AGE'].between(front_age_val, upper_range))]
-    # print("rslt_df",rslt_df)
+    print("rslt_df",rslt_df)
     result = rslt_df.sort_values(['LOS','READMISSION_30','READMISSION_60','FEEDBACK_CD','COST'],ascending = (True,True,True,False,True))
     df1 = result[['ROOT_DISEASE_CD','DOCTOR_ID','DOCTOR_NM']]
     df1.drop_duplicates(subset ="DOCTOR_ID",inplace = True)
     df1 = df1.head(5)
     print(df1)
     doctor_dict = {}
-    i = 1
-    for ind in df1.index:
+    doctors_list = []
+    final_dict = {}
+    '''for ind in df1.index:
         doctor_dict["doctor"+str(i)] = [str(df1['DOCTOR_ID'][ind]), df1['DOCTOR_NM'][ind]]
         i += 1
     print(doctor_dict)
-    return json.dumps(doctor_dict)
+    return json.dumps(doctor_dict)'''
+    for ind in df1.index:
+        doctor_dict = {"id": str(df1['DOCTOR_ID'][ind]), "name": df1['DOCTOR_NM'][ind]}
+        doctors_list.append(doctor_dict)
+    final_dict["doctors"] = doctors_list
+    print(final_dict)
+    return final_dict
 
 
 app.run()
